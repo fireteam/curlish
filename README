@@ -29,9 +29,11 @@
 
     Full automated installation:
 
-    curl https://raw.github.com/fireteam/curlish/master/install.sh|bash
+    $ curl -L http://bit.ly/curlish | bash
 
     Installs curlish into a separate virtualenv
     and adds a symlink to ~/.bin
 
+    (If you want to know what it executes, have a
+    look at the install.sh file in this repo)
 
