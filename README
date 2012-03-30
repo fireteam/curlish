@@ -27,3 +27,11 @@
     Requirements: Python and for the colors you
     also need Pygments.
 
+    Full automated installation:
+
+    curl https://raw.github.com/fireteam/curlish/master/install.sh|bash
+
+    Installs curlish into a separate virtualenv
+    and adds a symlink to ~/.bin
+
+
