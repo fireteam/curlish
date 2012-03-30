@@ -1,0 +1,29 @@
+
+  // curlish - curl with flames on top
+
+                        .('
+                       /%/\\'
+                      (%(%))'
+                       curl'
+
+    Ever had to speak to an OAuth 2.0 protected
+    resource for debugging purposes?  curl is a
+    nice tool, but it totally lacks helpers for
+    dealing with oauth.
+
+    curlish comes for the rescue.  It has can
+    remember access tokens for you and inject it
+    into requests.
+
+    Facebook is preconfigured so that you can dive
+    into testing it:
+
+    $ curlish https://graph.facebook.com/me
+
+    To add more sites you can directly modify the
+    config file which is located, conveniently
+    in ~/.ftcurlish.json
+
+    Requirements: Python and for the colors you
+    also need Pygments.
+
