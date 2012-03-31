@@ -341,41 +341,6 @@ class Site(object):
             self.request_tokens(token_cache)
         self.access_token = token_cache[self.name]
 
-    def invoke_curl(self, curl_path, args, url_arg):
-        if args[0] == '--':
-            args.pop(0)
-
-        if not curl_path:
-            fail('Could not find curl.  Put it into your config')
-
-        url = args[url_arg]
-        if self.bearer_transmission == 'header':
-            args += ['-H', 'Authorization: Bearer %s' % self.access_token]
-        elif self.bearer_transmission == 'query':
-            url += ('?' in url and '&' or '?') + 'access_token=' + \
-                urllib.quote(self.access_token)
-        else:
-            fail('Bearer transmission %s is unknown.' % self.bearer_transmission)
-
-        args[url_arg] = url
-
-        for key, value in self.extra_headers.iteritems():
-            args += ['-H', '%s: %s' % (key, value)]
-
-        # Force response headers
-        hide_headers = False
-        if not any(arg == '-i' or (arg[:1] == '-' and \
-                   arg[1:2] != '-' and 'i' in arg) for arg in args):
-            args.append('-i')
-            hide_headers = True
-
-        # Hide stats
-        args.append('-s')
-
-        p = subprocess.Popen([curl_path] + args, stdout=subprocess.PIPE)
-        beautify_curl_output(p.stdout, hide_headers)
-        sys.stdout.flush()
-
 
 def get_site_by_name(name):
     """Finds a site by its name."""
@@ -398,12 +363,11 @@ def get_site(site_name, url_arg):
         if base_url and url_arg.startswith(base_url):
             matches.append(Site(name, site))
             break
-    if not matches:
-        fail('No site specified and base URL did not match any known')
+    if len(matches) == 1:
+        return matches[0]
     if len(matches) > 1:
         fail('Too many matches.  Please specificy an application '
              'explicitly')
-    return matches[0]
 
 
 def get_default_curl_path():
@@ -466,7 +430,7 @@ def beautify_curl_output(iterable, hide_headers):
                 color = get_color('statusline_ok')
             sys.stdout.write(color + line + ANSI_CODES['reset'])
             continue
-        if re.search(r'^Content-Type:\s*(text/javascript|application/(.*?\+)json)\s*(?i)', line):
+        if re.search(r'^Content-Type:\s*(text/javascript|application/(.+?\+)?json)\s*(?i)', line):
             json_body = True
         if not hide_headers:
             # Nicer headers if we detect them
@@ -533,7 +497,7 @@ def add_site(site_name):
         one_of=['password', 'authorization_code'],
         default='authorization_code')
     base_url = prompt('base_url')
-    access_token_url =  prompt('access_token_url')
+    access_token_url = prompt('access_token_url')
     if grant_type == 'authorization_code':
         authorize_url = prompt('authorize_url')
 
@@ -579,6 +543,43 @@ def list_sites():
             else:
                 print '    %s: %s' % (key, value)
         print
+
+
+def invoke_curl(site, curl_path, args, url_arg):
+    if args[0] == '--':
+        args.pop(0)
+
+    if not curl_path:
+        fail('Could not find curl.  Put it into your config')
+
+    url = args[url_arg]
+    if site is not None:
+        if site.bearer_transmission == 'header':
+            args += ['-H', 'Authorization: Bearer %s' % site.access_token]
+        elif site.bearer_transmission == 'query':
+            url += ('?' in url and '&' or '?') + 'access_token=' + \
+                urllib.quote(site.access_token)
+        else:
+            fail('Bearer transmission %s is unknown.' % site.bearer_transmission)
+
+    args[url_arg] = url
+
+    if site is not None:
+        for key, value in site.extra_headers.iteritems():
+            args += ['-H', '%s: %s' % (key, value)]
+
+    # Force response headers
+    hide_headers = False
+    if not any(arg == '-i' or (arg[:1] == '-' and \
+               arg[1:2] != '-' and 'i' in arg) for arg in args):
+        args.append('-i')
+        hide_headers = True
+
+    # Hide stats
+    args.append('-s')
+
+    p = subprocess.Popen([curl_path] + args, stdout=subprocess.PIPE)
+    beautify_curl_output(p.stdout, hide_headers)
 
 
 # Load the settings once before we start up
@@ -633,9 +634,10 @@ def main():
         parser.print_usage()
         return
     site = get_site(args.site, extra_args[url_arg])
-    site.fetch_token_if_necessarys(settings.values['token_cache'])
+    if site is not None:
+        site.fetch_token_if_necessarys(settings.values['token_cache'])
     settings.save()
-    site.invoke_curl(settings.values['curl_path'], extra_args, url_arg)
+    invoke_curl(site, settings.values['curl_path'], extra_args, url_arg)
 
 
 if __name__ == '__main__':
