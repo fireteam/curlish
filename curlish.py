@@ -62,6 +62,16 @@ def str_to_uuid(s):
 HTTP_PORT = 62231
 DEFAULT_SETTINGS = {
     'curl_path': None,
+    'colors': {
+        'statusline_ok': 'green',
+        'statusline_error': 'red',
+        'header': 'teal',
+        'brace': 'teal',
+        'operator': None,
+        'constant': 'blue',
+        'number': 'purple',
+        'string': 'yellow'
+    },
     'sites': {
         "extra_headers": {},
         "request_token_params": {
@@ -93,14 +103,15 @@ ANSI_CODES = {
     'yellow': '\x1b[33m'
 }
 
-STATUSLINE_ERROR_COLOR = ANSI_CODES['red']
-STATUSLINE_COLOR = ANSI_CODES['green']
-HEADER_COLOR = ANSI_CODES['teal']
-BRACE_COLOR = ANSI_CODES['teal']
-RESET_COLOR = ANSI_CODES['reset']
-STRING_COLOR = ANSI_CODES['yellow']
-CONSTANT_COLOR = ANSI_CODES['blue']
-NUMBER_COLOR = ANSI_CODES['purple']
+
+def get_color(element):
+    user_colors = settings.values['colors']
+    name = user_colors.get(element)
+    if name is None and element not in user_colors:
+        name = DEFAULT_SETTINGS['colors'].get(element)
+    if name is not None:
+        return ANSI_CODES.get(name, '')
+    return ''
 
 
 def isatty():
@@ -416,17 +427,17 @@ def colorize_json_stream(iterator):
         color = None
         e = event.strip()
         if e in '[]{}':
-            color = BRACE_COLOR
+            color = get_color('brace')
         elif e in ',:':
-            color = None
+            color = get_color('operator')
         elif e[:1] == '"':
-            color = STRING_COLOR
+            color = get_color('string')
         elif e in ('true', 'false', 'null'):
-            color = CONSTANT_COLOR
+            color = get_color('constant')
         else:
-            color = NUMBER_COLOR
+            color = get_color('number')
         if color is not None:
-            event = color + event + RESET_COLOR
+            event = color + event + ANSI_CODES['reset']
         yield event
 
 
@@ -450,10 +461,10 @@ def beautify_curl_output(iterable, hide_headers):
     for line in iterable:
         if has_colors and re.search(r'^HTTP/', line):
             if re.search('HTTP/\d+.\d+ [45]\d+', line):
-                color = STATUSLINE_ERROR_COLOR
+                color = get_color('statusline_error')
             else:
-                color = STATUSLINE_COLOR
-            sys.stdout.write(color + line + RESET_COLOR)
+                color = get_color('statusline_ok')
+            sys.stdout.write(color + line + ANSI_CODES['reset'])
             continue
         if re.search(r'^Content-Type:\s*(text/javascript|application/(.*?\+)json)\s*(?i)', line):
             json_body = True
@@ -464,7 +475,8 @@ def beautify_curl_output(iterable, hide_headers):
             else:
                 key = None
             if has_colors and key is not None:
-                sys.stdout.write(HEADER_COLOR + key + RESET_COLOR + ': ' + value.lstrip())
+                sys.stdout.write(get_color('header') + key + ANSI_CODES['reset']
+                    + ': ' + value.lstrip())
             else:
                 sys.stdout.write(line)
             sys.stdout.flush()
