@@ -35,8 +35,10 @@ import webbrowser
 import argparse
 try:
     import json
+    from json.encoder import JSONEncoder
 except ImportError:
     import simplejson as json
+    from simplejson.encoder import JSONEncoder
 import urllib
 import urlparse
 import subprocess
@@ -46,14 +48,6 @@ from httplib import HTTPConnection, HTTPSConnection
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 from getpass import getpass
 from uuid import UUID
-
-try:
-    from pygments import highlight
-    from pygments.formatters import TerminalFormatter
-    from pygments.lexers import JavascriptLexer
-    have_pygments = True
-except ImportError:
-    have_pygments = False
 
 
 def str_to_uuid(s):
@@ -66,10 +60,6 @@ def str_to_uuid(s):
 
 
 HTTP_PORT = 62231
-STATUSLINE_COLOR = '\x1b[32m'
-STATUSLINE_ERROR_COLOR = '\x1b[31m'
-HEADER_COLOR = '\x1b[36m'
-RESET_COLOR = '\x1b[39;49;00m'
 DEFAULT_SETTINGS = {
     'curl_path': None,
     'sites': {
@@ -86,6 +76,31 @@ DEFAULT_SETTINGS = {
     },
     'token_cache': {}
 }
+ANSI_CODES = {
+    'black': '\x1b[30m',
+    'blink': '\x1b[05m',
+    'blue': '\x1b[34m',
+    'bold': '\x1b[01m',
+    'faint': '\x1b[02m',
+    'green': '\x1b[32m',
+    'purple': '\x1b[35m',
+    'red': '\x1b[31m',
+    'reset': '\x1b[39;49;00m',
+    'standout': '\x1b[03m',
+    'teal': '\x1b[36m',
+    'underline': '\x1b[04m',
+    'white': '\x1b[37m',
+    'yellow': '\x1b[33m'
+}
+
+STATUSLINE_ERROR_COLOR = ANSI_CODES['red']
+STATUSLINE_COLOR = ANSI_CODES['green']
+HEADER_COLOR = ANSI_CODES['teal']
+BRACE_COLOR = ANSI_CODES['teal']
+RESET_COLOR = ANSI_CODES['reset']
+STRING_COLOR = ANSI_CODES['yellow']
+CONSTANT_COLOR = ANSI_CODES['blue']
+NUMBER_COLOR = ANSI_CODES['purple']
 
 
 def isatty():
@@ -167,11 +182,12 @@ class Settings(object):
         rv = deepcopy(DEFAULT_SETTINGS)
         if os.path.isfile(self.filename):
             with open(self.filename) as f:
-                rv.update(json.load(f))
+                try:
+                    rv.update(json.load(f))
+                except Exception:
+                    pass
         if not rv['curl_path']:
             rv['curl_path'] = get_default_curl_path()
-            if not rv['curl_path']:
-                fail('Unable to find curl')
         self.values = rv
 
     def save(self):
@@ -318,6 +334,9 @@ class Site(object):
         if args[0] == '--':
             args.pop(0)
 
+        if not curl_path:
+            fail('Could not find curl.  Put it into your config')
+
         url = args[url_arg]
         if self.bearer_transmission == 'header':
             args += ['-H', 'Authorization: Bearer %s' % self.access_token]
@@ -347,17 +366,17 @@ class Site(object):
         sys.stdout.flush()
 
 
-def get_site_by_name(settings, name):
+def get_site_by_name(name):
     """Finds a site by its name."""
     rv = settings.values['sites'].get(name)
     if rv is not None:
         return Site(name, rv)
 
 
-def get_site(settings, site_name, url_arg):
+def get_site(site_name, url_arg):
     """Tries to look up a site from the config or automatically."""
     if site_name is not None:
-        site = get_site_by_name(settings, site_name)
+        site = get_site_by_name(site_name)
         if site is not None:
             return site
         fail('Site %s does not exist' % site_name)
@@ -391,13 +410,35 @@ def get_default_curl_path():
             return fullpath
 
 
+def colorize_json_stream(iterator):
+    """Adds colors to a JSON event stream."""
+    for event in iterator:
+        color = None
+        e = event.strip()
+        if e in '[]{}':
+            color = BRACE_COLOR
+        elif e in ',:':
+            color = None
+        elif e[:1] == '"':
+            color = STRING_COLOR
+        elif e in ('true', 'false', 'null'):
+            color = CONSTANT_COLOR
+        else:
+            color = NUMBER_COLOR
+        if color is not None:
+            event = color + event + RESET_COLOR
+        yield event
+
+
 def print_formatted_json(json_data):
     """Reindents JSON and colorizes if wanted."""
-    formatted = json.dumps(json_data, indent=2)
-    if have_pygments and is_color_terminal():
-        formatted = highlight(formatted, formatter=TerminalFormatter(),
-                              lexer=JavascriptLexer()).rstrip()
-    print formatted
+    iterator = JSONEncoder(indent=2, sort_keys=True).iterencode(json_data)
+    if is_color_terminal():
+        iterator = colorize_json_stream(iterator)
+    for event in iterator:
+        sys.stdout.write(event)
+    sys.stdout.write('\n')
+    sys.stdout.flush()
 
 
 def beautify_curl_output(iterable, hide_headers):
@@ -443,11 +484,11 @@ def beautify_curl_output(iterable, hide_headers):
             sys.stdout.flush()
 
 
-def clear_token_cache(settings, site_name):
+def clear_token_cache(site_name):
     """Delets all tokens or the token of a site."""
     site = None
     if site_name is not None:
-        site = get_site_by_name(settings, site_name)
+        site = get_site_by_name(site_name)
         if site is None:
             fail('Site %s does not exist' % site_name)
     if site is None:
@@ -459,7 +500,7 @@ def clear_token_cache(settings, site_name):
     settings.save()
 
 
-def add_site(settings, site_name):
+def add_site(site_name):
     """Registers a new site with the config."""
     def prompt(prompt, one_of=None, default=None):
         if default is not None:
@@ -502,7 +543,7 @@ def add_site(settings, site_name):
     print 'Site %s added' % site_name
 
 
-def remove_site(settings, site_name):
+def remove_site(site_name):
     """Removes a site from the config."""
     try:
         settings.values['sites'].pop(site_name)
@@ -512,7 +553,7 @@ def remove_site(settings, site_name):
     print 'Site %s removed' % site_name
 
 
-def list_sites(settings):
+def list_sites():
     """Prints a list of all sites."""
     print 'Registered sites:'
     print
@@ -526,6 +567,10 @@ def list_sites(settings):
             else:
                 print '    %s: %s' % (key, value)
         print
+
+
+# Load the settings once before we start up
+settings = Settings()
 
 
 def main():
@@ -556,20 +601,18 @@ def main():
         print __doc__.rstrip()
         return
 
-    settings = Settings()
-
     # Custom commands
     if args.clear_token_cache:
-        clear_token_cache(settings, args.site)
+        clear_token_cache(args.site)
         return
     if args.add_site:
-        add_site(settings, args.add_site)
+        add_site(args.add_site)
         return
     if args.remove_site:
-        remove_site(settings, args.remove_site)
+        remove_site(args.remove_site)
         return
     if args.list_sites:
-        list_sites(settings)
+        list_sites()
         return
 
     # Redirect everything else to curl via the site
@@ -577,11 +620,14 @@ def main():
     if url_arg is None:
         parser.print_usage()
         return
-    site = get_site(settings, args.site, extra_args[url_arg])
+    site = get_site(args.site, extra_args[url_arg])
     site.fetch_token_if_necessarys(settings.values['token_cache'])
     settings.save()
     site.invoke_curl(settings.values['curl_path'], extra_args, url_arg)
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
