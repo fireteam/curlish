@@ -11,7 +11,7 @@
     nice tool, but it totally lacks helpers for
     dealing with oauth.
 
-    curlish comes for the rescue.  It has can
+    curlish comes for the rescue.  It is able to
     remember access tokens for you and inject it
     into requests.
 
