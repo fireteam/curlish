@@ -74,16 +74,18 @@ DEFAULT_SETTINGS = {
         'string': 'yellow'
     },
     'sites': {
-        "extra_headers": {},
-        "request_token_params": {
-            "scope": "email"
-        },
-        "authorize_url": "https://www.facebook.com/dialog/oauth",
-        "base_url": "https://graph.facebook.com/",
-        "client_id": "384088028278656",
-        "client_secret": "14c75a494cda2e11e8760095ec972915",
-        "grant_type": "authorization_code",
-        "access_token_url": "/oauth/access_token"
+        "facebook": {
+            "extra_headers": {},
+            "request_token_params": {
+                "scope": "email"
+            },
+            "authorize_url": "https://www.facebook.com/dialog/oauth",
+            "base_url": "https://graph.facebook.com/",
+            "client_id": "384088028278656",
+            "client_secret": "14c75a494cda2e11e8760095ec972915",
+            "grant_type": "authorization_code",
+            "access_token_url": "/oauth/access_token"
+        }
     },
     'token_cache': {}
 }
@@ -291,6 +293,7 @@ class Site(object):
             params = {'grant_type': 'password'}
             params['username'] = raw_input('Username: ')
             params['password'] = getpass()
+            params.update(self.request_token_params)
             rv = self.get_access_token(params)
             if rv is None:
                 print 'Error: invalid credentials'
