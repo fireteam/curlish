@@ -24,15 +24,13 @@
     config file which is located, conveniently
     in ~/.ftcurlish.json
 
-    Requirements: Python and for the colors you
-    also need Pygments.
+    Requirements: Python 2.6 or higher.
 
     Full automated installation:
 
     $ curl -L http://bit.ly/curlish | bash
 
-    Installs curlish into a separate virtualenv
-    and adds a symlink to ~/.bin
+    Installs curlish into ~/.bin for you.
 
     (If you want to know what it executes, have a
     look at the install.sh file in this repo)

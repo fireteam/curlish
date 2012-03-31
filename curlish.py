@@ -59,9 +59,9 @@ def str_to_uuid(s):
         sys.exit(1)
 
 
-HTTP_PORT = 62231
 DEFAULT_SETTINGS = {
     'curl_path': None,
+    'http_port': 62231,
     'colors': {
         'statusline_ok': 'green',
         'statusline_error': 'red',
@@ -298,7 +298,7 @@ class Site(object):
             return
 
     def request_authorization_code_grant(self, token_cache):
-        redirect_uri = 'http://127.0.0.1:%d/' % HTTP_PORT
+        redirect_uri = 'http://127.0.0.1:%d/' % settings.values['http_port']
         params = {
             'client_id':        self.client_id,
             'redirect_uri':     redirect_uri
@@ -309,7 +309,7 @@ class Site(object):
             urllib.urlencode(params)
         )
         webbrowser.open(browser_url)
-        server_address = ('127.0.0.1', HTTP_PORT)
+        server_address = ('127.0.0.1', settings.values['http_port'])
         httpd = HTTPServer(server_address, AuthorizationHandler)
         httpd.token_response = None
         httpd.handle_request()
