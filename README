@@ -35,3 +35,10 @@
     (If you want to know what it executes, have a
     look at the install.sh file in this repo)
 
+    For advanced use see the ~/.ftcurlish.json file
+    which can be used to automatically add extra
+    headers to all requests and more.  You can
+    also use the thing with non OAuth endpoints
+    by just not configuring OAuth.  Then it just
+    injects extra headers and colorizes output.
+

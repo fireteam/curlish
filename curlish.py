@@ -62,6 +62,7 @@ def str_to_uuid(s):
 DEFAULT_SETTINGS = {
     'curl_path': None,
     'http_port': 62231,
+    'json_indent': 2,
     'colors': {
         'statusline_ok': 'green',
         'statusline_error': 'red',
@@ -407,7 +408,8 @@ def colorize_json_stream(iterator):
 
 def print_formatted_json(json_data):
     """Reindents JSON and colorizes if wanted."""
-    iterator = JSONEncoder(indent=2, sort_keys=True).iterencode(json_data)
+    iterator = JSONEncoder(indent=settings.values['json_indent'],
+                           sort_keys=True).iterencode(json_data)
     if is_color_terminal():
         iterator = colorize_json_stream(iterator)
     for event in iterator:
@@ -493,13 +495,24 @@ def add_site(site_name):
             if default is not None:
                 return default
 
-    grant_type = prompt('grant_type',
-        one_of=['password', 'authorization_code'],
-        default='authorization_code')
     base_url = prompt('base_url')
-    access_token_url = prompt('access_token_url')
-    if grant_type == 'authorization_code':
-        authorize_url = prompt('authorize_url')
+    if prompt('Configure OAuth 2.0?', ['yes', 'no'], 'yes') == 'yes':
+        grant_type = prompt('grant_type',
+            one_of=['password', 'authorization_code'],
+            default='authorization_code')
+        access_token_url = prompt('access_token_url')
+        if grant_type == 'authorization_code':
+            authorize_url = prompt('authorize_url')
+        client_id = prompt('client_id')
+        client_secret = prompt('client_secret')
+        bearer_transmission = prompt('bearer_transmission',
+            one_of=['header', 'query'], default='query')
+    else:
+        grant_type = None
+        access_token_url = None
+        client_id = None
+        client_secret = None
+        bearer_transmission = None
 
     settings.values['sites'][site_name] = {
         'extra_headers': {},
@@ -508,11 +521,10 @@ def add_site(site_name):
         'grant_type': grant_type,
         'base_url': base_url,
         'access_token_url': access_token_url,
-        'client_id': prompt('client_id'),
-        'client_secret': prompt('client_secret'),
+        'client_id': client_id,
+        'client_secret': client_secret,
         'grant_type': grant_type,
-        'bearer_transmission': prompt('bearer_transmission',
-            one_of=['header', 'query'], default='query')
+        'bearer_transmission': bearer_transmission
     }
     settings.values['token_cache'].pop(site_name, None)
     settings.save()
@@ -553,7 +565,7 @@ def invoke_curl(site, curl_path, args, url_arg):
         fail('Could not find curl.  Put it into your config')
 
     url = args[url_arg]
-    if site is not None:
+    if site is not None and site.bearer_transmission is not None:
         if site.bearer_transmission == 'header':
             args += ['-H', 'Authorization: Bearer %s' % site.access_token]
         elif site.bearer_transmission == 'query':
@@ -634,7 +646,7 @@ def main():
         parser.print_usage()
         return
     site = get_site(args.site, extra_args[url_arg])
-    if site is not None:
+    if site is not None and site.grant_type is not None:
         site.fetch_token_if_necessarys(settings.values['token_cache'])
     settings.save()
     invoke_curl(site, settings.values['curl_path'], extra_args, url_arg)
