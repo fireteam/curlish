@@ -170,13 +170,13 @@ class AuthorizationHandler(BaseHTTPRequestHandler):
             <!doctype html>
             <title>%(title)s</title>
             <style type=text/css>
-                body { font-family: sans-serif; margin: 30px 60px; }
-                h1   { font-weight: normal; size: 28px; }
-                p    { margin: 10px 0; }
+                body { font-family: sans-serif; margin: 60px auto; width: 400px; }
+                h1   { font-weight: normal; size: 28px; color: #b00; margin: 0 0 15px 0; }
+                p    { margin: 7px 0 0 20px; }
             </style>
             <h1>%(title)s</h1>
             <p>%(text)s
-            <p>You can now close this window.
+            <p>You can now close this window, it's no longer needed.
         ''' % locals())
         self.wfile.close()
 
@@ -288,7 +288,7 @@ class Site(object):
         error_msg = data.get('error_description')
         fail("Couldn't authorize: %s - %s" % (error, error_msg))
 
-    def request_password_grant(self, token_cache):
+    def request_password_grant(self):
         while 1:
             params = {'grant_type': 'password'}
             params['username'] = raw_input('Username: ')
@@ -298,10 +298,10 @@ class Site(object):
             if rv is None:
                 print 'Error: invalid credentials'
                 continue
-            token_cache[self.name] = rv
+            settings.values['token_cache'][self.name] = rv
             return
 
-    def request_authorization_code_grant(self, token_cache):
+    def request_authorization_code_grant(self):
         redirect_uri = 'http://127.0.0.1:%d/' % settings.values['http_port']
         params = {
             'client_id':        self.client_id,
@@ -319,30 +319,31 @@ class Site(object):
         httpd.handle_request()
         if 'code' in httpd.token_response:
             return self.exchange_code_for_token(httpd.token_response['code'],
-                                                redirect_uri, token_cache)
+                                                redirect_uri)
         print 'Could not sign in: grant cancelled'
         for key, value in httpd.token_response.iteritems():
             print '  %s: %s' % (key, value)
         sys.exit(1)
 
-    def exchange_code_for_token(self, code, redirect_uri, token_cache):
-        token_cache[self.name] = self.get_access_token({
+    def exchange_code_for_token(self, code, redirect_uri):
+        settings.values['token_cache'][self.name] = self.get_access_token({
             'code':         code,
             'grant_type':   'authorization_code',
             'redirect_uri': redirect_uri
         })
 
-    def request_tokens(self, token_cache):
+    def request_tokens(self):
         if self.grant_type == 'password':
-            self.request_password_grant(token_cache)
+            self.request_password_grant()
         elif self.grant_type == 'authorization_code':
-            self.request_authorization_code_grant(token_cache)
+            self.request_authorization_code_grant()
         else:
             fail('Invalid grant configured: %s' % self.grant_type)
 
-    def fetch_token_if_necessarys(self, token_cache):
+    def fetch_token_if_necessarys(self):
+        token_cache = settings.values['token_cache']
         if token_cache.get(self.name) is None:
-            self.request_tokens(token_cache)
+            self.request_tokens()
         self.access_token = token_cache[self.name]
 
 
@@ -650,7 +651,7 @@ def main():
         return
     site = get_site(args.site, extra_args[url_arg])
     if site is not None and site.grant_type is not None:
-        site.fetch_token_if_necessarys(settings.values['token_cache'])
+        site.fetch_token_if_necessarys()
     settings.save()
     invoke_curl(site, settings.values['curl_path'], extra_args, url_arg)
 
