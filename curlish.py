@@ -25,6 +25,12 @@ common curl options:
   -X METHOD              specifies the method
   -H "Header: value"     emits a header with a value
   -d "key=value"         emits a pair of form data
+
+curl extension options:
+  METHOD                 shortcut for -XMETHOD if it's one of the known
+                         HTTP methods.
+  -J key=value           transmits a JSON string value.
+  -J key:=value          transmits raw JSON data for a key (bool int etc.)
 """
 from __future__ import with_statement
 import os
@@ -58,6 +64,9 @@ def str_to_uuid(s):
         print "%s is not a valid UUID" % s
         sys.exit(1)
 
+
+KNOWN_HTTP_METHODS = set(['GET', 'POST', 'HEAD', 'PUT', 'OPTIONS',
+                          'TRACE', 'DELETE', 'PATCH'])
 
 DEFAULT_SETTINGS = {
     'curl_path': None,
@@ -105,6 +114,53 @@ ANSI_CODES = {
     'white': '\x1b[37m',
     'yellow': '\x1b[33m'
 }
+
+
+_list_marker = object()
+_value_marker = object()
+
+
+def decode_flat_data(pairiter):
+    def _split_key(name):
+        result = name.split('.')
+        for idx, part in enumerate(result):
+            if part.isdigit():
+                result[idx] = int(part)
+        return result
+
+    def _enter_container(container, key):
+        if key not in container:
+            return container.setdefault(key, {_list_marker: False})
+        return container[key]
+
+    def _convert(container):
+        if _value_marker in container:
+            force_list = False
+            values = container.pop(_value_marker)
+            if container.pop(_list_marker):
+                force_list = True
+                values.extend(_convert(x[1]) for x in
+                              sorted(container.items()))
+            if not force_list and len(values) == 1:
+                values = values[0]
+            return values
+        elif container.pop(_list_marker):
+            return [_convert(x[1]) for x in sorted(container.items())]
+        return dict((k, _convert(v)) for k, v in container.iteritems())
+
+    result = {_list_marker: False}
+    for key, values in pairiter:
+        parts = _split_key(key)
+        if not parts:
+            continue
+        container = result
+        for part in parts:
+            last_container = container
+            container = _enter_container(container, part)
+            last_container[_list_marker] = isinstance(part, (int, long))
+        container[_value_marker] = values
+
+    return _convert(result)
 
 
 def get_color(element):
@@ -561,6 +617,71 @@ def list_sites():
         print
 
 
+def add_content_type_if_missing(args, content_type):
+    """Very basic hack that adds a content type if no content type
+    was mentioned so far.
+    """
+    was_h = False
+    for arg in args:
+        iarg = arg.lower()
+        if iarg.startswith('-hcontent-type'):
+            return
+        elif iarg == '-h':
+            was_h = True
+        elif was_h:
+            if iarg.startswith('content-type'):
+                return
+            was_h = False
+    args.append('-H')
+    args.append('Content-Type: ' + content_type)
+
+
+def handle_curlish_arguments(args):
+    new_args = []
+    json_pairs = []
+
+    argiter = iter(args)
+    def _get_next_arg(error):
+        try:
+            return argiter.next()
+        except StopIteration:
+            fail('Error: ' + error)
+
+    def handle_json_value(value):
+        if ':=' in value:
+            dkey, value = value.split(':=', 1)
+        elif '=' in value:
+            dkey, value = value.split('=', 1)
+            vlaue = json.dumps(value)
+        else:
+            fail('Error: malformed json data with -J')
+        json_pairs.append((dkey, value))
+
+    for idx, arg in enumerate(argiter):
+        # Automatic -X in front of known http method names
+        if arg in KNOWN_HTTP_METHODS:
+            new_args.append('-X' + arg)
+        elif arg == '-J':
+            handle_json_value(_get_next_arg('-J requires an argument'))
+        elif arg.startswith('-J'):
+            handle_json_value(arg[2:])
+        # Regular argument
+        else:
+            new_args.append(arg)
+
+    json_data = decode_flat_data(json_pairs)
+    need_json = bool(json_data)
+    if len(json_data) == 1 and '' in json_data:
+        json_data = json_data['']
+
+    if need_json:
+        add_content_type_if_missing(new_args, 'application/json')
+        new_args.append('--data-binary')
+        new_args.append(json.dumps(json_data))
+
+    return new_args
+
+
 def invoke_curl(site, curl_path, args, url_arg):
     if args[0] == '--':
         args.pop(0)
@@ -593,6 +714,9 @@ def invoke_curl(site, curl_path, args, url_arg):
 
     # Hide stats
     args.append('-s')
+
+    # Handle curlish specific argument shortcuts
+    args = handle_curlish_arguments(args)
 
     p = subprocess.Popen([curl_path] + args, stdout=subprocess.PIPE)
     beautify_curl_output(p.stdout, hide_headers)
