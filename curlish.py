@@ -149,7 +149,7 @@ def decode_flat_data(pairiter):
         return dict((k, _convert(v)) for k, v in container.iteritems())
 
     result = {_list_marker: False}
-    for key, values in pairiter:
+    for key, value in pairiter:
         parts = _split_key(key)
         if not parts:
             continue
@@ -158,7 +158,7 @@ def decode_flat_data(pairiter):
             last_container = container
             container = _enter_container(container, part)
             last_container[_list_marker] = isinstance(part, (int, long))
-        container[_value_marker] = values
+        container[_value_marker] = [value]
 
     return _convert(result)
 
@@ -650,6 +650,10 @@ def handle_curlish_arguments(args):
     def handle_json_value(value):
         if ':=' in value:
             dkey, value = value.split(':=', 1)
+            try:
+                value = json.loads(value)
+            except Exception:
+                fail('Error: invalid JSON data for "%s"' % dkey)
         elif '=' in value:
             dkey, value = value.split('=', 1)
             vlaue = json.dumps(value)
