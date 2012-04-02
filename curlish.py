@@ -362,7 +362,8 @@ class Site(object):
         redirect_uri = 'http://127.0.0.1:%d/' % settings.values['http_port']
         params = {
             'client_id':        self.client_id,
-            'redirect_uri':     redirect_uri
+            'redirect_uri':     redirect_uri,
+            'response_type':    'code'
         }
         params.update(self.request_token_params)
         browser_url = '%s?%s' % (
