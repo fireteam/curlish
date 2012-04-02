@@ -80,7 +80,8 @@ DEFAULT_SETTINGS = {
         'operator': None,
         'constant': 'blue',
         'number': 'purple',
-        'string': 'yellow'
+        'string': 'yellow',
+        'objstring': 'green'
     },
     'sites': {
         "facebook": {
@@ -467,13 +468,59 @@ def colorize_json_stream(iterator):
 
 
 def print_formatted_json(json_data):
-    """Reindents JSON and colorizes if wanted."""
-    iterator = JSONEncoder(indent=settings.values['json_indent'],
-                           sort_keys=True).iterencode(json_data)
+    """Reindents JSON and colorizes if wanted.  We use our own wrapper
+    around json.dumps because we want to inject colors and the simplejson
+    iterator encoder does some buffering between separate events that makes
+    it really hard to inject colors.
+    """
     if is_color_terminal():
-        iterator = colorize_json_stream(iterator)
-    for event in iterator:
-        sys.stdout.write(event)
+        def colorize(colorname, text):
+            color = get_color(colorname)
+            reset = ANSI_CODES['reset']
+            return color + text + reset
+    else:
+        colorlize = lambda x: x
+
+    def _walk(obj, indentation, inline=False, w=sys.stdout.write):
+        i = ' ' * (indentation * settings.values['json_indent'])
+        if not inline:
+            w(i)
+        if isinstance(obj, basestring):
+            w(colorize('string', json.dumps(obj)))
+        elif isinstance(obj, (int, long, float)):
+            w(colorize('number', json.dumps(obj)))
+        elif obj in (True, False, None):
+            w(colorize('constant', json.dumps(obj)))
+        elif isinstance(obj, list):
+            if not obj:
+                w(colorize('brace', '[]'))
+            else:
+                w(colorize('brace', '[\n'))
+                for idx, item in enumerate(obj):
+                    if idx:
+                        w(colorize('operator', ',\n'))
+                    _walk(item, indentation + 1)
+                w(colorize('brace', '\n' + i + ']'))
+        elif isinstance(obj, dict):
+            if not obj:
+                w(colorize('brace', '{}'))
+            else:
+                w(colorize('brace', '{\n'))
+                for idx, (key, value) in enumerate(obj.iteritems()):
+                    if idx:
+                        w(colorize('operator', ',\n'))
+                    ki = i + ' ' * settings.values['json_indent']
+                    w(ki + colorize('objstring', json.dumps(key)))
+                    w(colorize('operator', ': '))
+                    _walk(value, indentation + 1, inline=True)
+                w(i + colorize('brace', '\n' + i + '}'))
+        else:
+            # hmm. should not happen, but let's just assume it might
+            # because of json changes
+            w(json.dumps(obj))
+
+
+    _walk(json_data, 0)
     sys.stdout.write('\n')
     sys.stdout.flush()
 
