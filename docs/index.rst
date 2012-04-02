@@ -136,6 +136,46 @@ from the token cache::
 
 If you don't specify the site it will remove all cached tokens.
 
+Curl Extension Arguments
+------------------------
+
+In addition to the curl arguments, `curlish` supports a few other ones as
+shortcuts for common tasks:
+
+``-Jkey=value``
+    sends a JSON string value as key to some object.  If the key is empty
+    the whole body of the JSON transmission will just be that string
+    value.  The key can be in dotted notation to construct objects.  See
+    below.
+
+``-Jkey:=value``
+    Like ``-Jkey=value`` but the value part has to be a JSON object - no
+    conversion to string takes place.  You can use this to send integers
+    and boolean values.
+
+``GET``, ``POST``, etc.
+    If it's one of the common HTTP methods the ``-X`` prefix is implicit.
+
+Sending JSON Objects
+--------------------
+
+Since we're supporting dotted notation you can send complex JSON objects
+and arrays.  Basically the key is in dotted notation and the system figues
+out the rest::
+
+    curlish -Jfoo.int:=1 -Jfoo.string=42
+
+Results in this JSON data:
+
+.. sourcecode:: javascript
+
+    {
+      "foo": {
+        "int": 1,
+        "string": "42"
+      }
+    }
+
 Who is behind this?
 -------------------
 
