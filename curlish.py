@@ -480,7 +480,7 @@ def print_formatted_json(json_data):
             reset = ANSI_CODES['reset']
             return color + text + reset
     else:
-        colorize = lambda x: x
+        colorize = lambda x, t: t
 
     def _walk(obj, indentation, inline=False, w=sys.stdout.write):
         i = ' ' * (indentation * settings.values['json_indent'])
