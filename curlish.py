@@ -603,6 +603,7 @@ def add_site(site_name):
             if default is not None:
                 return default
 
+    authorize_url = None
     base_url = prompt('base_url')
     if prompt('Configure OAuth 2.0?', ['yes', 'no'], 'yes') == 'yes':
         grant_type = prompt('grant_type',
@@ -629,6 +630,7 @@ def add_site(site_name):
         'grant_type': grant_type,
         'base_url': base_url,
         'access_token_url': access_token_url,
+        'authorize_url': authorize_url,
         'client_id': client_id,
         'client_secret': client_secret,
         'grant_type': grant_type,
