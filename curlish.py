@@ -255,8 +255,8 @@ class Settings(object):
             with open(self.filename) as f:
                 try:
                     rv.update(json.load(f))
-                except Exception:
-                    pass
+                except Exception, e:
+                    fail('Error: JSON error in config file: %s' % e)
         if not rv['curl_path']:
             rv['curl_path'] = get_default_curl_path()
         self.values = rv
