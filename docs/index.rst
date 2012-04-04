@@ -36,7 +36,7 @@ Basic Usage
 Out of the box curlish forwards all arguments but the ones that are used
 to control curlish to the ``curl`` executable.  The result from curl is
 processed and nicely colorized if your terminal supports that.  Also we're
-reindenting JSON for you that it's more readable.
+reindenting JSON for you so that it's more readable.
 
 To get more out of it you need to register a site with it.  This will make
 curl understand OAuth for a specific API.  By default we already have
@@ -127,7 +127,7 @@ whatever reason you can change it in the config.
 Clearing Tokens
 ---------------
 
-Because detecting stale tokens is specific for each indidivual service
+Because detecting stale tokens is specific for each individual service
 we're not attempting to detect expired tokens.  As such if you get a
 notification that a token is expired from the API you need to remove it
 from the token cache::
@@ -143,13 +143,13 @@ In addition to the curl arguments, `curlish` supports a few other ones as
 shortcuts for common tasks:
 
 ``-Jkey=value``
-    sends a JSON string value as key to some object.  If the key is empty
+    Sends a JSON string value as key to some object.  If the key is empty
     the whole body of the JSON transmission will just be that string
     value.  The key can be in dotted notation to construct objects.  See
     below.
 
 ``-Jkey:=value``
-    Like ``-Jkey=value`` but the value part has to be a JSON object - no
+    Like ``-Jkey=value`` but the value part has to be a JSON object -- no
     conversion to string takes place.  You can use this to send integers
     and boolean values.
 
@@ -160,7 +160,7 @@ Sending JSON Objects
 --------------------
 
 Since we're supporting dotted notation you can send complex JSON objects
-and arrays.  Basically the key is in dotted notation and the system figues
+and arrays.  Basically the key is in dotted notation and the system figures
 out the rest::
 
     curlish -Jfoo.int:=1 -Jfoo.string=42
