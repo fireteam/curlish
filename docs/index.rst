@@ -137,6 +137,26 @@ from the token cache::
 
 If you don't specify the site it will remove all cached tokens.
 
+Common Curl Arguments
+---------------------
+
+``-v``
+    Enables verbose mode
+
+``-i``
+    Prints response headers
+
+``-X METHOD``
+    specifies the HTTP method instead of automatically picking it.  For
+    known HTTP methods you can also leave off the ``-X`` prefix as a
+    ``curlish`` specific feature.
+
+``-H "Header: value"``
+    Emits a request header with a specific value.
+
+``-d "key=value"``
+    Emits a pair of form data.
+
 Curl Extension Arguments
 ------------------------
 
@@ -153,6 +173,9 @@ shortcuts for common tasks:
     Like ``-Jkey=value`` but the value part has to be a JSON object -- no
     conversion to string takes place.  You can use this to send integers
     and boolean values.
+
+``--ajax``
+    Sends an ``X-Requested-With: XMLHttpRequest`` header.
 
 ``GET``, ``POST``, etc.
     If it's one of the common HTTP methods the ``-X`` prefix is implicit.
@@ -185,9 +208,3 @@ you pass ``--cookies`` to curlish it will create a file in
 ``~/.ftcurlish-cookies`` for each site which stores the cookies in plain
 text.  To delete those cookies again you can either delete that file by
 hand or pass ``--clear-cookies`` to curlish.
-
-Other Things
-------------
-
-The ``--ajax`` flag will send an ``X-Requested-With: XMLHttpRequest``
-header with all requests.
