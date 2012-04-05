@@ -766,14 +766,15 @@ def invoke_curl(site, curl_path, args, url_arg):
         args.append('-i')
         hide_headers = True
 
-    # Hide stats
-    args.append('-s')
+    # Hide stats but keep errors
+    args.append('-sS')
 
     # Handle curlish specific argument shortcuts
     args = handle_curlish_arguments(args)
 
     p = subprocess.Popen([curl_path] + args, stdout=subprocess.PIPE)
     beautify_curl_output(p.stdout, hide_headers)
+    sys.exit(p.wait())
 
 
 # Load the settings once before we start up
