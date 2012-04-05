@@ -175,9 +175,3 @@ Results in this JSON data:
         "string": "42"
       }
     }
-
-Who is behind this?
--------------------
-
-Curlish was conjured by the fine folks from `Fireteam
-<http://fireteam.net>`_.

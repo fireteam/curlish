@@ -50,7 +50,7 @@ copyright = u'2012, Fireteam Ltd.'
 # The short X.Y version.
 import subprocess
 version = subprocess.Popen([sys.executable, 'setup.py', '--version'],
-                           cwd='..', stdout=subprocess.PIPE).communicate()[0]
+                           cwd='..', stdout=subprocess.PIPE).communicate()[0].strip()
 # The full version, including alpha/beta/rc tags.
 release = version
 

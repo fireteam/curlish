@@ -286,3 +286,14 @@ tt.xref, a tt {
 a:hover tt {
     background: #EEE;
 }
+
+div.behindthis {
+    margin: 0 auto;
+    padding: 0 0 60px 0;
+    width: 500px;
+    color: #555;
+    text-align: center;
+    font-size: 15px;
+    background: url(fireteam.png) center 60px no-repeat;
+    height: 170px;
+}
