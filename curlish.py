@@ -31,6 +31,8 @@ curl extension options:
                          HTTP methods.
   -J key=value           transmits a JSON string value.
   -J key:=value          transmits raw JSON data for a key (bool int etc.)
+  --ajax                 Sends an X-Requested-With header with the value
+                         set to XMLHttpRequest.
 """
 from __future__ import with_statement
 import os
@@ -715,6 +717,11 @@ def handle_curlish_arguments(args):
         # Automatic -X in front of known http method names
         if arg in KNOWN_HTTP_METHODS:
             new_args.append('-X' + arg)
+        # Shortcut for X-Requested-With
+        elif arg == '--ajax':
+            new_args.append('-H')
+            new_args.append('X-Requested-With: XMLHttpRequest')
+        # JSON data
         elif arg == '-J':
             handle_json_value(_get_next_arg('-J requires an argument'))
         elif arg.startswith('-J'):
