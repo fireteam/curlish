@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-                        .('
-                       /%/\\'
-                      (%(%))'
-                       curl'
+                                   .('
+                                  /%/\\'
+                                 (%(%))'
+                                  curl'
 
 Before you can use curlish you need to register the site with the curlish
 client.  For that you can use the --add-site parameter which will walk you
