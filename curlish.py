@@ -33,6 +33,10 @@ curl extension options:
   -J key:=value          transmits raw JSON data for a key (bool int etc.)
   --ajax                 Sends an X-Requested-With header with the value
                          set to XMLHttpRequest.
+  --cookies              Enables simple cookie handling for this request.
+                         It will store cookies in ~/.ftcurlish-cookies as
+                         individual text files for each site.  Use
+                         --clear-cookies to remove them.
 """
 from __future__ import with_statement
 import os
@@ -241,6 +245,12 @@ class AuthorizationHandler(BaseHTTPRequestHandler):
 
     def log_message(self, *args, **kwargs):
         pass
+
+
+def get_cookie_path():
+    if os.name == 'nt':
+        return os.path.expandvars(r'%APPDATA%\\FireteamCurlish\\Cookies')
+    return os.path.expanduser(r'~/.ftcurlish-cookies')
 
 
 class Settings(object):
@@ -669,6 +679,24 @@ def list_sites():
         print
 
 
+def clear_cookies(site_name):
+    if site_name is None:
+        import shutil
+        try:
+            shutil.rmtree(get_cookie_path())
+        except (OSError, IOError):
+            pass
+        print 'Deleted all cookies'
+        return
+    if site_name not in settings.values['sites']:
+        fail('Site %s does not exist' % site_name)
+    try:
+        os.remove(os.path.join(get_cookie_path(), site_name + '.txt'))
+    except OSError:
+        pass
+    print 'Cookies for %s deleted' % site_name
+
+
 def add_content_type_if_missing(args, content_type):
     """Very basic hack that adds a content type if no content type
     was mentioned so far.
@@ -688,9 +716,10 @@ def add_content_type_if_missing(args, content_type):
     args.append('Content-Type: ' + content_type)
 
 
-def handle_curlish_arguments(args):
+def handle_curlish_arguments(site, args):
     new_args = []
     json_pairs = []
+    use_cookies = False
 
     argiter = iter(args)
     def _get_next_arg(error):
@@ -721,6 +750,9 @@ def handle_curlish_arguments(args):
         elif arg == '--ajax':
             new_args.append('-H')
             new_args.append('X-Requested-With: XMLHttpRequest')
+        # Cookie support
+        elif arg == '--cookies':
+            use_cookies = True
         # JSON data
         elif arg == '-J':
             handle_json_value(_get_next_arg('-J requires an argument'))
@@ -739,6 +771,19 @@ def handle_curlish_arguments(args):
         add_content_type_if_missing(new_args, 'application/json')
         new_args.append('--data-binary')
         new_args.append(json.dumps(json_data))
+
+    if use_cookies:
+        cookie_path = get_cookie_path()
+        if not os.path.isdir(cookie_path):
+            os.makedirs(cookie_path)
+        if site is None:
+            cookie_filename = os.path.join(cookie_path, '_default.txt')
+        else:
+            cookie_filename = os.path.join(cookie_path, site.name + '.txt')
+        new_args.extend((
+            '-c', cookie_filename,
+            '-b', cookie_filename
+        ))
 
     return new_args
 
@@ -777,7 +822,7 @@ def invoke_curl(site, curl_path, args, url_arg):
     args.append('-sS')
 
     # Handle curlish specific argument shortcuts
-    args = handle_curlish_arguments(args)
+    args = handle_curlish_arguments(site, args)
 
     p = subprocess.Popen([curl_path] + args, stdout=subprocess.PIPE)
     beautify_curl_output(p.stdout, hide_headers)
@@ -804,6 +849,9 @@ def main():
                         metavar='NAME')
     parser.add_argument('--list-sites', help='Lists all known sites',
                         action='store_true')
+    parser.add_argument('--clear-cookies', action='store_true',
+                        help='Deletes all the cookies or cookies that belong '
+                             'to one specific site only.')
 
     try:
         args, extra_args = parser.parse_known_args()
@@ -828,6 +876,9 @@ def main():
         return
     if args.list_sites:
         list_sites()
+        return
+    if args.clear_cookies:
+        clear_cookies(args.site)
         return
 
     # Redirect everything else to curl via the site
