@@ -8,7 +8,8 @@ purposes?  curl is a nice tool, but it totally lacks helpers for dealing
 with oauth.
 
 curlish comes for the rescue.  It is able to remember access tokens for
-you and inject it into requests.
+you and inject it into requests.  Facebook comes preconfigured so you can
+start using it right away.
 
 How it Looks
 ------------
