@@ -175,3 +175,18 @@ Results in this JSON data:
         "string": "42"
       }
     }
+
+Automatic Cookie Management
+---------------------------
+
+Curlish also simplifies cookie handling compared to plain old curl.  If
+you pass ``--cookies`` to curlish it will create a file in
+``~/.ftcurlish-cookies`` for each site which stores the cookies in plain
+text.  To delete those cookies again you can either delete that file by
+hand or pass ``--clear-cookies`` to curlish.
+
+Other Things
+------------
+
+The ``--ajax`` flag will send an ``X-Requested-With: XMLHttpRequest``
+header with all requests.
