@@ -37,6 +37,10 @@ curl extension options:
                          It will store cookies in ~/.ftcurlish-cookies as
                          individual text files for each site.  Use
                          --clear-cookies to remove them.
+  --hide-jsonp           If curlish detects a JSONP response it will by
+                         default keep the wrapper function call around.
+                         If this is set it will appear as if it was a
+                         regular JSON response.
 """
 from __future__ import with_statement
 import os
@@ -87,7 +91,8 @@ DEFAULT_SETTINGS = {
         'constant': 'blue',
         'number': 'purple',
         'string': 'yellow',
-        'objstring': 'green'
+        'objstring': 'green',
+        'jsonpfunc': None
     },
     'sites': {
         "facebook": {
@@ -125,6 +130,7 @@ ANSI_CODES = {
 
 _list_marker = object()
 _value_marker = object()
+_jsonp_re = re.compile(r'^(.*?)\s*\((.+?)\);?\s*$(?ms)')
 
 
 def decode_flat_data(pairiter):
@@ -480,7 +486,7 @@ def colorize_json_stream(iterator):
         yield event
 
 
-def print_formatted_json(json_data):
+def print_formatted_json(json_data, jsonp_func=None):
     """Reindents JSON and colorizes if wanted.  We use our own wrapper
     around json.dumps because we want to inject colors and the simplejson
     iterator encoder does some buffering between separate events that makes
@@ -533,14 +539,22 @@ def print_formatted_json(json_data):
             w(json.dumps(obj))
 
 
-    _walk(json_data, 0)
+    if jsonp_func is not None:
+        sys.stdout.write(colorize('jsonpfunc', jsonp_func))
+        sys.stdout.write(colorize('brace', '('))
+        _walk(json_data, 0)
+        sys.stdout.write(colorize('brace', ')'))
+        sys.stdout.write(colorize('operator', ';'))
+    else:
+        _walk(json_data, 0)
     sys.stdout.write('\n')
     sys.stdout.flush()
 
 
-def beautify_curl_output(iterable, hide_headers):
+def beautify_curl_output(iterable, hide_headers, hide_jsonp=False):
     """Parses curl output and adds colors and reindents as necessary."""
     json_body = False
+    might_be_javascript = False
     has_colors = is_color_terminal()
 
     # Headers
@@ -554,6 +568,8 @@ def beautify_curl_output(iterable, hide_headers):
             continue
         if re.search(r'^Content-Type:\s*(text/javascript|application/(.+?\+)?json)\s*(?i)', line):
             json_body = True
+            if 'javascript' in line:
+                might_be_javascript = True
         if not hide_headers:
             # Nicer headers if we detect them
             if not line.startswith(' ') and ':' in line:
@@ -572,14 +588,29 @@ def beautify_curl_output(iterable, hide_headers):
     # JSON Body.  Do not reindent if we have headers and are piping
     # into a file because of changing content length.
     if json_body and (hide_headers or isatty()):
-        data = json.loads(''.join(iterable))
-        print_formatted_json(data)
+        body = ''.join(iterable)
+        json_body = body
+        jsonp_func = None
+        if might_be_javascript:
+            jsonp_match = _jsonp_re.match(body)
+            if jsonp_match is not None:
+                if not hide_jsonp:
+                    jsonp_func = jsonp_match.group(1)
+                json_body = jsonp_match.group(2)
+        try:
+            data = json.loads(json_body)
+        except Exception:
+            # Something went wrong, it's malformed.  Just make it an
+            # iterable again and print it normally;
+            iterable = body.splitlines(True)
+        else:
+            print_formatted_json(data, jsonp_func)
+            return
 
     # Regular body
-    else:
-        for line in iterable:
-            sys.stdout.write(line)
-            sys.stdout.flush()
+    for line in iterable:
+        sys.stdout.write(line)
+        sys.stdout.flush()
 
 
 def clear_token_cache(site_name):
@@ -720,6 +751,7 @@ def handle_curlish_arguments(site, args):
     new_args = []
     json_pairs = []
     use_cookies = False
+    hide_jsonp = False
 
     argiter = iter(args)
     def _get_next_arg(error):
@@ -753,6 +785,9 @@ def handle_curlish_arguments(site, args):
         # Cookie support
         elif arg == '--cookies':
             use_cookies = True
+        # Hide JSONP function name?
+        elif arg == '--hide-jsonp':
+            hide_jsonp = True
         # JSON data
         elif arg == '-J':
             handle_json_value(_get_next_arg('-J requires an argument'))
@@ -785,7 +820,7 @@ def handle_curlish_arguments(site, args):
             '-b', cookie_filename
         ))
 
-    return new_args
+    return new_args, {'hide_jsonp': hide_jsonp}
 
 
 def invoke_curl(site, curl_path, args, url_arg):
@@ -822,10 +857,10 @@ def invoke_curl(site, curl_path, args, url_arg):
     args.append('-sS')
 
     # Handle curlish specific argument shortcuts
-    args = handle_curlish_arguments(site, args)
+    args, options = handle_curlish_arguments(site, args)
 
     p = subprocess.Popen([curl_path] + args, stdout=subprocess.PIPE)
-    beautify_curl_output(p.stdout, hide_headers)
+    beautify_curl_output(p.stdout, hide_headers, hide_jsonp=options['hide_jsonp'])
     sys.exit(p.wait())
 
 

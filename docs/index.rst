@@ -180,6 +180,15 @@ shortcuts for common tasks:
 ``GET``, ``POST``, etc.
     If it's one of the common HTTP methods the ``-X`` prefix is implicit.
 
+``--cookies``
+    Enables simple cookie handling for this request.  See :ref:`cookies`
+    for more information.
+
+``--hide-jsonp``
+    If curlish detects a JSONP response it will by default keep the
+    wrapper function call around.  If this is set it will appear as if it
+    was a regular JSON response.
+
 Sending JSON Objects
 --------------------
 
@@ -199,6 +208,8 @@ Results in this JSON data:
         "string": "42"
       }
     }
+
+.. _cookies:
 
 Automatic Cookie Management
 ---------------------------
