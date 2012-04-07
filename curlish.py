@@ -564,7 +564,8 @@ def beautify_curl_output(iterable, hide_headers, hide_jsonp=False):
                 color = get_color('statusline_error')
             else:
                 color = get_color('statusline_ok')
-            sys.stdout.write(color + line + ANSI_CODES['reset'])
+            if not hide_headers:
+                sys.stdout.write(color + line + ANSI_CODES['reset'])
             continue
         if re.search(r'^Content-Type:\s*(text/javascript|application/(.+?\+)?json)\s*(?i)', line):
             json_body = True
