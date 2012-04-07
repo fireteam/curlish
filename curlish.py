@@ -848,8 +848,7 @@ def invoke_curl(site, curl_path, args, url_arg):
 
     # Force response headers
     hide_headers = False
-    if not any(arg == '-i' or (arg[:1] == '-' and \
-               arg[1:2] != '-' and 'i' in arg) for arg in args):
+    if '-i' not in args:
         args.append('-i')
         hide_headers = True
 
