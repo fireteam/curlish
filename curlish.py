@@ -770,7 +770,6 @@ def handle_curlish_arguments(site, args):
                 fail('Error: invalid JSON data for "%s"' % dkey)
         elif '=' in value:
             dkey, value = value.split('=', 1)
-            value = json.dumps(value)
         else:
             fail('Error: malformed json data with -J')
         json_pairs.append((dkey, value))
