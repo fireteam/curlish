@@ -889,7 +889,7 @@ def main():
 
     try:
         args, extra_args = parser.parse_known_args()
-    except Exception as e:
+    except Exception, e:
         print e
         sys.exit(1)
 
