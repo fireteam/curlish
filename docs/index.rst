@@ -21,7 +21,7 @@ Installation
 ------------
 
 Curlish is a small script written in Python without any further
-dependencies but things that are shipped with Python 2.6.  If you are
+dependencies but things that are shipped with Python 2.7.  If you are
 running an older Python version you will need to install simplejson.
 
 Quick installation::
