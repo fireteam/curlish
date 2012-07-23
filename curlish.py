@@ -774,9 +774,10 @@ def handle_curlish_arguments(site, args):
             fail('Error: malformed json data with -J')
         json_pairs.append((dkey, value))
 
+    last_arg_was_x = False
     for idx, arg in enumerate(argiter):
         # Automatic -X in front of known http method names
-        if arg in KNOWN_HTTP_METHODS:
+        if arg in KNOWN_HTTP_METHODS and not last_arg_was_x:
             new_args.append('-X' + arg)
         # Shortcut for X-Requested-With
         elif arg == '--ajax':
@@ -796,6 +797,7 @@ def handle_curlish_arguments(site, args):
         # Regular argument
         else:
             new_args.append(arg)
+        last_arg_was_x = arg == '-X'
 
     json_data = decode_flat_data(json_pairs)
     need_json = bool(json_data)
