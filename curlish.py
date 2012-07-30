@@ -825,7 +825,7 @@ def handle_curlish_arguments(site, args):
     return new_args, {'hide_jsonp': hide_jsonp}
 
 
-def invoke_curl(site, curl_path, args, url_arg):
+def invoke_curl(site, curl_path, args, url_arg, dump_args=False):
     if args[0] == '--':
         args.pop(0)
 
@@ -860,6 +860,11 @@ def invoke_curl(site, curl_path, args, url_arg):
     # Handle curlish specific argument shortcuts
     args, options = handle_curlish_arguments(site, args)
 
+    if dump_args:
+        print ' '.join('"%s"' % x.replace('"', '\\"') if any(y.isspace() for y in x) else x
+                       for x in args)
+        return
+
     p = subprocess.Popen([curl_path] + args, stdout=subprocess.PIPE)
     beautify_curl_output(p.stdout, hide_headers, hide_jsonp=options['hide_jsonp'])
     sys.exit(p.wait())
@@ -888,6 +893,9 @@ def main():
     parser.add_argument('--clear-cookies', action='store_true',
                         help='Deletes all the cookies or cookies that belong '
                              'to one specific site only.')
+    parser.add_argument('--dump-curl-args', action='store_true',
+                        help='Instead of executing dump the curl command line '
+                             'arguments for this call')
 
     try:
         args, extra_args = parser.parse_known_args()
@@ -926,7 +934,8 @@ def main():
     if site is not None and site.grant_type is not None:
         site.fetch_token_if_necessarys()
     settings.save()
-    invoke_curl(site, settings.values['curl_path'], extra_args, url_arg)
+    invoke_curl(site, settings.values['curl_path'], extra_args, url_arg,
+                dump_args=args.dump_curl_args)
 
 
 if __name__ == '__main__':
