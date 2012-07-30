@@ -186,18 +186,20 @@ def get_color(element):
     return ''
 
 
-def isatty():
+def isatty(stream):
     """Is stdout connected to a terminal or a file?"""
-    if not hasattr(sys.stdout, 'isatty'):
+    if not hasattr(stream, 'isatty'):
         return False
-    if not sys.stdout.isatty():
+    if not stream.isatty():
         return False
     return True
 
 
-def is_color_terminal():
+def is_color_terminal(stream=None):
     """Returns `True` if this terminal has colors."""
-    if not isatty():
+    if stream is None:
+        stream = sys.stdout
+    if not isatty(stream):
         return False
     if 'COLORTERM' in os.environ:
         return True
@@ -486,13 +488,15 @@ def colorize_json_stream(iterator):
         yield event
 
 
-def print_formatted_json(json_data, jsonp_func=None):
+def print_formatted_json(json_data, jsonp_func=None, stream=None):
     """Reindents JSON and colorizes if wanted.  We use our own wrapper
     around json.dumps because we want to inject colors and the simplejson
     iterator encoder does some buffering between separate events that makes
     it really hard to inject colors.
     """
-    if is_color_terminal():
+    if stream is None:
+        stream = sys.stdout
+    if is_color_terminal(stream):
         def colorize(colorname, text):
             color = get_color(colorname)
             reset = ANSI_CODES['reset']
@@ -500,7 +504,7 @@ def print_formatted_json(json_data, jsonp_func=None):
     else:
         colorize = lambda x, t: t
 
-    def _walk(obj, indentation, inline=False, w=sys.stdout.write):
+    def _walk(obj, indentation, inline=False, w=stream.write):
         i = ' ' * (indentation * settings.values['json_indent'])
         if not inline:
             w(i)
@@ -540,19 +544,22 @@ def print_formatted_json(json_data, jsonp_func=None):
 
 
     if jsonp_func is not None:
-        sys.stdout.write(colorize('jsonpfunc', jsonp_func))
-        sys.stdout.write(colorize('brace', '('))
+        stream.write(colorize('jsonpfunc', jsonp_func))
+        stream.write(colorize('brace', '('))
         _walk(json_data, 0)
-        sys.stdout.write(colorize('brace', ')'))
-        sys.stdout.write(colorize('operator', ';'))
+        stream.write(colorize('brace', ')'))
+        stream.write(colorize('operator', ';'))
     else:
         _walk(json_data, 0)
-    sys.stdout.write('\n')
-    sys.stdout.flush()
+    stream.write('\n')
+    stream.flush()
 
 
-def beautify_curl_output(iterable, hide_headers, hide_jsonp=False):
+def beautify_curl_output(iterable, hide_headers, hide_jsonp=False,
+                         stream=None):
     """Parses curl output and adds colors and reindents as necessary."""
+    if stream is None:
+        stream = sys.stdout
     json_body = False
     might_be_javascript = False
     has_colors = is_color_terminal()
@@ -565,7 +572,7 @@ def beautify_curl_output(iterable, hide_headers, hide_jsonp=False):
             else:
                 color = get_color('statusline_ok')
             if not hide_headers:
-                sys.stdout.write(color + line + ANSI_CODES['reset'])
+                stream.write(color + line + ANSI_CODES['reset'])
             continue
         if re.search(r'^Content-Type:\s*(text/javascript|application/(.+?\+)?json)\s*(?i)', line):
             json_body = True
@@ -578,17 +585,17 @@ def beautify_curl_output(iterable, hide_headers, hide_jsonp=False):
             else:
                 key = None
             if has_colors and key is not None:
-                sys.stdout.write(get_color('header') + key + ANSI_CODES['reset']
+                stream.write(get_color('header') + key + ANSI_CODES['reset']
                     + ': ' + value.lstrip())
             else:
-                sys.stdout.write(line)
-            sys.stdout.flush()
+                stream.write(line)
+            stream.flush()
         if line == '\r\n':
             break
 
     # JSON Body.  Do not reindent if we have headers and are piping
     # into a file because of changing content length.
-    if json_body and (hide_headers or isatty()):
+    if json_body and (hide_headers or isatty(stream)):
         body = ''.join(iterable)
         json_body = body
         jsonp_func = None
@@ -605,13 +612,13 @@ def beautify_curl_output(iterable, hide_headers, hide_jsonp=False):
             # iterable again and print it normally;
             iterable = body.splitlines(True)
         else:
-            print_formatted_json(data, jsonp_func)
+            print_formatted_json(data, jsonp_func, stream)
             return
 
     # Regular body
     for line in iterable:
-        sys.stdout.write(line)
-        sys.stdout.flush()
+        stream.write(line)
+        stream.flush()
 
 
 def clear_token_cache(site_name):
@@ -825,7 +832,8 @@ def handle_curlish_arguments(site, args):
     return new_args, {'hide_jsonp': hide_jsonp}
 
 
-def invoke_curl(site, curl_path, args, url_arg, dump_args=False):
+def invoke_curl(site, curl_path, args, url_arg, dump_args=False,
+                dump_response=None):
     if args[0] == '--':
         args.pop(0)
 
@@ -861,12 +869,19 @@ def invoke_curl(site, curl_path, args, url_arg, dump_args=False):
     args, options = handle_curlish_arguments(site, args)
 
     if dump_args:
-        print ' '.join('"%s"' % x.replace('"', '\\"') if any(y.isspace() for y in x) else x
-                       for x in args)
+        print ' '.join('"%s"' % x.replace('"', '\\"') if
+            any(y.isspace() for y in x) else x for x in args)
         return
 
     p = subprocess.Popen([curl_path] + args, stdout=subprocess.PIPE)
-    beautify_curl_output(p.stdout, hide_headers, hide_jsonp=options['hide_jsonp'])
+    if dump_response is not None:
+        f = open(dump_response, 'w')
+    else:
+        f = sys.stdout
+    beautify_curl_output(p.stdout, hide_headers, hide_jsonp=options['hide_jsonp'],
+                         stream=f)
+    if f is not sys.stdout:
+        f.close()
     sys.exit(p.wait())
 
 
@@ -896,6 +911,8 @@ def main():
     parser.add_argument('--dump-curl-args', action='store_true',
                         help='Instead of executing dump the curl command line '
                              'arguments for this call')
+    parser.add_argument('--dump-response', help='Instead of writing the response '
+                        'to stdout, write the response into a file instead')
 
     try:
         args, extra_args = parser.parse_known_args()
@@ -935,7 +952,8 @@ def main():
         site.fetch_token_if_necessarys()
     settings.save()
     invoke_curl(site, settings.values['curl_path'], extra_args, url_arg,
-                dump_args=args.dump_curl_args)
+                dump_args=args.dump_curl_args,
+                dump_response=args.dump_response)
 
 
 if __name__ == '__main__':
