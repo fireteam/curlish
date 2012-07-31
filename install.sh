@@ -1,11 +1,9 @@
 #!/bin/bash
 
-BIN_DIR="~/.bin";
+BIN_DIR=`dirname ~/.bin/dummy`;
 if [ -n "$1" ]; then
   BIN_DIR="$1";
 fi
-
-echo $BIN_DIR;
 
 CURL=curl
 
@@ -15,7 +13,7 @@ if [ -z $(which "$CURL") ]; then
 fi
 
 echo 'Downloading curlish...'
-mkdir -p $BIN_DIR
+mkdir -p "$BIN_DIR"
 curl -s https://raw.github.com/fireteam/curlish/master/curlish.py > $BIN_DIR/curlish
 chmod +x $BIN_DIR/curlish
 echo
