@@ -309,6 +309,7 @@ class Site(object):
         self.request_token_params = values.get('request_token_params') or {}
         self.extra_headers = values.get('extra_headers') or {}
         self.bearer_transmission = values.get('bearer_transmission', 'query')
+        self.default = values.get('default', False)
         self.access_token = None
 
     def make_request(self, method, url, headers=None, data=None):
@@ -378,6 +379,15 @@ class Site(object):
             settings.values['token_cache'][self.name] = rv
             return
 
+    def request_client_credentials_grant(self):
+        params = {'grant_type': 'client_credentials'}
+        params.update(self.request_token_params)
+        rv = self.get_access_token(params)
+        if rv is None:
+            print 'Error: client_credentials token request failed'
+        else:
+            settings.values['token_cache'][self.name] = rv
+
     def request_authorization_code_grant(self):
         redirect_uri = 'http://127.0.0.1:%d/' % settings.values['http_port']
         params = {
@@ -415,6 +425,8 @@ class Site(object):
             self.request_password_grant()
         elif self.grant_type == 'authorization_code':
             self.request_authorization_code_grant()
+        elif self.grant_type == 'client_credentials':
+            self.request_client_credentials_grant()
         else:
             fail('Invalid grant configured: %s' % self.grant_type)
 
@@ -448,9 +460,12 @@ def get_site(site_name, url_arg):
             break
     if len(matches) == 1:
         return matches[0]
+    for match in matches:
+        if match.default:
+            return match
     if len(matches) > 1:
         fail('Too many matches.  Please specificy an application '
-             'explicitly')
+             'explicitly or set a default')
 
 
 def get_default_curl_path():
@@ -685,7 +700,8 @@ def add_site(site_name):
         'client_id': client_id,
         'client_secret': client_secret,
         'grant_type': grant_type,
-        'bearer_transmission': bearer_transmission
+        'bearer_transmission': bearer_transmission,
+        "url_default": False
     }
     settings.values['token_cache'].pop(site_name, None)
     settings.save()
@@ -895,7 +911,8 @@ def main():
     parser.add_argument('-h', '--help', action='store_true',
                         help='Prints this help.')
     parser.add_argument('--site', help='The site to use.  By default it will '
-                        'guess the site from the URL of the request.')
+                        'guess the site from the URL of the request preferring '
+                        'sites with default set to True.')
     parser.add_argument('--clear-token-cache', action='store_true',
                         help='Clears the token cache.  By default of all the '
                              'sites, can be limited to one site with --site.')
