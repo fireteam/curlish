@@ -701,7 +701,7 @@ def add_site(site_name):
         'client_secret': client_secret,
         'grant_type': grant_type,
         'bearer_transmission': bearer_transmission,
-        "url_default": False
+        'default': False
     }
     settings.values['token_cache'].pop(site_name, None)
     settings.save()
