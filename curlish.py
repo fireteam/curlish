@@ -457,7 +457,6 @@ def get_site(site_name, url_arg):
         base_url = site.get('base_url')
         if base_url and url_arg.startswith(base_url):
             matches.append(Site(name, site))
-            break
     if len(matches) == 1:
         return matches[0]
     for match in matches:
