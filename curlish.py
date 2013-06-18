@@ -82,6 +82,7 @@ DEFAULT_SETTINGS = {
     'curl_path': None,
     'http_port': 62231,
     'json_indent': 2,
+    'sort_keys': True,
     'colors': {
         'statusline_ok': 'green',
         'statusline_error': 'red',
@@ -543,7 +544,11 @@ def print_formatted_json(json_data, jsonp_func=None, stream=None):
                 w(colorize('brace', '{}'))
             else:
                 w(colorize('brace', '{\n'))
-                for idx, (key, value) in enumerate(obj.iteritems()):
+                if settings.values['sort_keys']:
+                    items = sorted(obj.items(), key=lambda x: x[0].lower())
+                else:
+                    items = obj.iteritems()
+                for idx, (key, value) in enumerate(items):
                     if idx:
                         w(colorize('operator', ',\n'))
                     ki = i + ' ' * settings.values['json_indent']
