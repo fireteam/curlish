@@ -574,8 +574,8 @@ def print_formatted_json(json_data, jsonp_func=None, stream=None):
     stream.flush()
 
 
-def beautify_curl_output(iterable, hide_headers, hide_jsonp=False,
-                         stream=None):
+def beautify_curl_output(p, hide_headers, hide_jsonp=False,
+                         stream=None, json_stream=False):
     """Parses curl output and adds colors and reindents as necessary."""
     if stream is None:
         stream = sys.stdout
@@ -584,7 +584,10 @@ def beautify_curl_output(iterable, hide_headers, hide_jsonp=False,
     has_colors = is_color_terminal()
 
     # Headers
-    for line in iterable:
+    while 1:
+        line = p.stdout.readline()
+        if not line:
+            break
         if has_colors and re.search(r'^HTTP/', line):
             if re.search('HTTP/\d+.\d+ [45]\d+', line):
                 color = get_color('statusline_error')
@@ -612,10 +615,26 @@ def beautify_curl_output(iterable, hide_headers, hide_jsonp=False,
         if line == '\r\n':
             break
 
+    # JSON streams
+    if json_stream:
+        while 1:
+            line = p.stdout.readline()
+            if not line:
+                break
+            line = line.strip()
+            if line:
+                try:
+                    data = json.loads(line)
+                except Exception:
+                    print 'invalid json:', line
+                else:
+                    print_formatted_json(data, stream=stream)
+        return
+
     # JSON Body.  Do not reindent if we have headers and are piping
     # into a file because of changing content length.
     if json_body and (hide_headers or isatty(stream)):
-        body = ''.join(iterable)
+        body = ''.join(p.stdout)
         json_body = body
         jsonp_func = None
         if might_be_javascript:
@@ -853,7 +872,7 @@ def handle_curlish_arguments(site, args):
 
 
 def invoke_curl(site, curl_path, args, url_arg, dump_args=False,
-                dump_response=None):
+                dump_response=None, json_stream=False):
     if args[0] == '--':
         args.pop(0)
 
@@ -885,6 +904,9 @@ def invoke_curl(site, curl_path, args, url_arg, dump_args=False,
     # Hide stats but keep errors
     args.append('-sS')
 
+    # Unbuffered
+    args.append('-N')
+
     # Handle curlish specific argument shortcuts
     args, options = handle_curlish_arguments(site, args)
 
@@ -893,13 +915,14 @@ def invoke_curl(site, curl_path, args, url_arg, dump_args=False,
             any(y.isspace() for y in x) else x for x in args)
         return
 
-    p = subprocess.Popen([curl_path] + args, stdout=subprocess.PIPE)
+    p = subprocess.Popen([curl_path] + args, stdout=subprocess.PIPE,
+                         bufsize=1)
     if dump_response is not None:
         f = open(dump_response, 'w')
     else:
         f = sys.stdout
-    beautify_curl_output(p.stdout, hide_headers, hide_jsonp=options['hide_jsonp'],
-                         stream=f)
+    beautify_curl_output(p, hide_headers, hide_jsonp=options['hide_jsonp'],
+                         stream=f, json_stream=json_stream)
     if f is not sys.stdout:
         f.close()
     sys.exit(p.wait())
@@ -934,6 +957,11 @@ def main():
                              'arguments for this call')
     parser.add_argument('--dump-response', help='Instead of writing the response '
                         'to stdout, write the response into a file instead')
+    parser.add_argument('--json-stream', action='store_true',
+                        default=False,
+                        help='Assumes that the response from the server is a JSON '
+                             'response stream and colorizes each element '
+                             'individually and skips past empty chunks.')
 
     try:
         args, extra_args = parser.parse_known_args()
@@ -974,7 +1002,8 @@ def main():
     settings.save()
     invoke_curl(site, settings.values['curl_path'], extra_args, url_arg,
                 dump_args=args.dump_curl_args,
-                dump_response=args.dump_response)
+                dump_response=args.dump_response,
+                json_stream=args.json_stream)
 
 
 if __name__ == '__main__':
