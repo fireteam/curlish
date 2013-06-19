@@ -631,10 +631,12 @@ def beautify_curl_output(p, hide_headers, hide_jsonp=False,
                     print_formatted_json(data, stream=stream)
         return
 
+    iterable = p.stdout
+
     # JSON Body.  Do not reindent if we have headers and are piping
     # into a file because of changing content length.
     if json_body and (hide_headers or isatty(stream)):
-        body = ''.join(p.stdout)
+        body = ''.join(iterable)
         json_body = body
         jsonp_func = None
         if might_be_javascript:
