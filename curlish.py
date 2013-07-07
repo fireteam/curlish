@@ -359,13 +359,13 @@ class Site(object):
 
         status, data = self.make_request('POST',
                                          self.access_token_url, data=data, headers=headers)
-        if status == 200:
+        if status in (200, 201):
             return data['access_token']
-        error = data.get('error')
+        error = data.get('error') or 'unknown_error'
         if error in ('invalid_grant', 'access_denied'):
             return None
-        error_msg = data.get('error_description')
-        fail("Couldn't authorize: %s - %s" % (error, error_msg))
+        error_msg = data.get('error_description') or 'no description'
+        fail("Couldn't authorize: %s: %s" % (error, error_msg))
 
     def request_password_grant(self):
         while 1:
