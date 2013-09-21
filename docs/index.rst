@@ -174,6 +174,12 @@ shortcuts for common tasks:
     conversion to string takes place.  You can use this to send integers
     and boolean values.
 
+``-J@filename``
+    Sends a file as JSON body to the server.
+
+``-Jkey=@filename``
+    Sends a JSON body where a key is loaded from a JSON file.
+
 ``--ajax``
     Sends an ``X-Requested-With: XMLHttpRequest`` header.
 
