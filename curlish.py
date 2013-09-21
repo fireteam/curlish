@@ -835,10 +835,8 @@ def handle_curlish_arguments(site, args):
                     value = json.loads(value)
                 except Exception:
                     fail('Error: invalid JSON data for "%s"' % dkey)
-            else:
-                dkey, value = value.split('=', 1)
-                if value[:1] == '@':
-                    value = _load_json_value(value[1:])
+            elif value[:1] == '@':
+                value = _load_json_value(value[1:])
         json_pairs.append((dkey, value))
 
     last_arg_was_x = False
