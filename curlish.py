@@ -909,6 +909,9 @@ def invoke_curl(site, curl_path, args, url_arg, dump_args=False,
     # Unbuffered
     args.append('-N')
 
+    # Disable expect by default
+    args.append('-HExpect:')
+
     # Handle curlish specific argument shortcuts
     args, options = handle_curlish_arguments(site, args)
 
