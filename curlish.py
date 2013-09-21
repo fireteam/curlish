@@ -31,6 +31,8 @@ curl extension options:
                          HTTP methods.
   -J key=value           transmits a JSON string value.
   -J key:=value          transmits raw JSON data for a key (bool int etc.)
+  -J @/path/to/file      transmits JSON data loaded from a file.
+  -J key=@value          transmits JSON data loaded from a file for a key.
   --ajax                 Sends an X-Requested-With header with the value
                          set to XMLHttpRequest.
   --cookies              Enables simple cookie handling for this request.
@@ -810,16 +812,33 @@ def handle_curlish_arguments(site, args):
             fail('Error: ' + error)
 
     def handle_json_value(value):
-        if ':=' in value:
-            dkey, value = value.split(':=', 1)
+        dkey = ''
+        def _load_json_value(filename):
             try:
-                value = json.loads(value)
-            except Exception:
+                with open(filename) as f:
+                    return json.load(f)
+            except IOError as e:
+                fail('Error: could not read from file: %s' % e)
+            except Exception as e:
                 fail('Error: invalid JSON data for "%s"' % dkey)
-        elif '=' in value:
-            dkey, value = value.split('=', 1)
+
+        if value[:1] == '@':
+            value = _load_json_value(value[1:])
         else:
-            fail('Error: malformed json data with -J')
+            args = value.split('=', 1)
+            if len(args) < 2:
+                fail('Error: wrong argument count for -J')
+            dkey, value = args
+            if dkey.endswith(':'):
+                dkey = dkey[:-1]
+                try:
+                    value = json.loads(value)
+                except Exception:
+                    fail('Error: invalid JSON data for "%s"' % dkey)
+            else:
+                dkey, value = value.split('=', 1)
+                if value[:1] == '@':
+                    value = _load_json_value(value[1:])
         json_pairs.append((dkey, value))
 
     last_arg_was_x = False
