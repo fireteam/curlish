@@ -7,7 +7,7 @@ setup(
     name='curlish',
     author='Fireteam Ltd.',
     author_email='support@fireteam.net',
-    version='1.20',
+    version='1.21',
     url='http://github.com/fireteam/curlish',
     py_modules=['curlish'],
     description='A wrapper for curl that adds OAuth support',
