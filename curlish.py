@@ -68,6 +68,10 @@ from getpass import getpass
 from uuid import UUID
 
 
+# Not set when frozen
+globals().setdefault('__file__', 'curlish.py')
+
+
 def str_to_uuid(s):
     try:
         UUID(s)
@@ -473,14 +477,18 @@ def get_site(site_name, url_arg):
 def get_default_curl_path():
     """Tries to find curl and returns the path to it."""
     def tryrun(path):
-        subprocess.call([path, '--version'], stdout=subprocess.PIPE,
-                        stdin=subprocess.PIPE)
+        try:
+            subprocess.call([path, '--version'], stdout=subprocess.PIPE,
+                            stdin=subprocess.PIPE)
+        except OSError:
+		    return False
         return True
     if tryrun('curl'):
         return 'curl'
     base = os.path.abspath(os.path.dirname(__file__))
     for name in 'curl', 'curl.exe':
         fullpath = os.path.join(base, name)
+        print fullpath
         if tryrun(fullpath):
             return fullpath
 
