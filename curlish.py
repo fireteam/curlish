@@ -679,6 +679,12 @@ def clear_token_cache(site_name):
     settings.save()
 
 
+def init_config():
+    """Initializes the config"""
+    print 'Initialized the config'
+    settings.save()
+
+
 def add_site(site_name):
     """Registers a new site with the config."""
     def prompt(prompt, one_of=None, default=None):
@@ -959,6 +965,9 @@ def main():
                                      add_help=False)
     parser.add_argument('-h', '--help', action='store_true',
                         help='Prints this help.')
+    parser.add_argument('--init-config', action='store_true',
+                        help='Adds an empty config if it is currently '
+                        'missing.')
     parser.add_argument('--site', help='The site to use.  By default it will '
                         'guess the site from the URL of the request preferring '
                         'sites with default set to True.')
@@ -999,6 +1008,9 @@ def main():
     # Custom commands
     if args.clear_token_cache:
         clear_token_cache(args.site)
+        return
+    if args.init_config:
+        init_config()
         return
     if args.add_site:
         add_site(args.add_site)
