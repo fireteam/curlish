@@ -8,7 +8,7 @@ build_exe_options = {
 
 
 setup(name="curlish",
-      version="1.0",
+      version="1.22",
       description="Curlish",
       options={"build_exe": build_exe_options},
       executables=[Executable("curlish.py")])
