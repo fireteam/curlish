@@ -689,7 +689,7 @@ def clear_token_cache(site_name):
 
 def init_config():
     """Initializes the config"""
-    print 'Initialized the config'
+    print 'Initialized the config in %s' % settings.filename
     settings.save()
 
 
