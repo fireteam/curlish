@@ -1,2 +1,5 @@
 docs/_build
 .DS_Store
+build
+dist
+curl.exe
